@@ -175,7 +175,8 @@ class QuadMap
         current_quad.DeleteObjectByID(in_new_pos_object.GetId());
         current_quad.DeleteNodeIfEmpty();
 
-        InsertObject(in_new_pos_object);
+        _objs_ht.Remove(in_new_pos_object.GetId());
+        InsertObject(in_new_pos_object); 
 
     }
 

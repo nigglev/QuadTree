@@ -32,7 +32,7 @@ public class CubeGenerator : MonoBehaviour
     {   
         _mouse_point = Vector3.zero;
         _quad_map = new QuadMap(_plane_size, _plane_left_bottom, _tree_Deep);
-        _selected_objects = null;
+        _selected_objects = new List<IQuadObject>();
         _selected_object = null;
         _is_dragging = false;
 
