@@ -2,10 +2,8 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-
-
 public class CubeGenerator : MonoBehaviour
-{   
+{
     [SerializeField]
     int _cubes_number = 100000;
     [SerializeField]
@@ -17,7 +15,11 @@ public class CubeGenerator : MonoBehaviour
     [SerializeField]
     float _box_size_max = 40f;
     [SerializeField]
-    int _tree_Deep = 3;
+    int _tree_depth = 3;
+    [SerializeField]
+    GameObject _cube_prefab;
+    [SerializeField]
+    GameObject _edge_prefab;
 
     Vector3 _mouse_point;
     Vector3 _last_mouse_pos;
@@ -27,39 +29,45 @@ public class CubeGenerator : MonoBehaviour
     List<IQuadObject> _selected_objects;
     CUnit _selected_object;
     bool _is_dragging;
+    GameObject _cube_obj;
+    
 
-    void Start ()
-    {   
+    void Start()
+    {
         _mouse_point = Vector3.zero;
-        _quad_map = new QuadMap(_plane_size, _plane_left_bottom, _tree_Deep);
+        _quad_map = new QuadMap(_plane_size, _plane_left_bottom, _tree_depth);
         _selected_objects = new List<IQuadObject>();
         _selected_object = null;
         _is_dragging = false;
 
         for (int i = 0; i < _cubes_number; i++)
         {
-
-            CUnit unit = new CUnit(_plane_left_bottom.x, _plane_left_bottom.x + _plane_size, _plane_left_bottom.z, _plane_left_bottom.z + _plane_size,
+            _cube_obj = Instantiate(_cube_prefab);
+            CUnit unit = new CUnit(_cube_obj, _plane_left_bottom.x, _plane_left_bottom.x + _plane_size, _plane_left_bottom.z, _plane_left_bottom.z + _plane_size,
                 _box_size_min, _box_size_max, CIdGen.Instance.GetNewId());
-            //CUnit unit = new CUnit(_plane_left_bottom.x, _plane_left_bottom.x + _plane_size, _plane_left_bottom.z, _plane_left_bottom.z + _plane_size,
-            //    _box_size_min, _box_size_max, 1);
             _quad_map.InsertObject(unit);
         }
     }
-	
-	// Update is called once per frame
-	void Update ()
+
+    // Update is called once per frame
+    void Update()
     {
         if (Input.GetMouseButtonDown(1))
         {
             _mouse_point = GetPointOnPlaneByMousePosition();
             if (_quad_map.IsEmpty())
             {
-                CUnit unit = new CUnit(_mouse_point, _box_size_min, _box_size_max, CIdGen.Instance.GetNewId());
+                _cube_obj = Instantiate(_cube_prefab);
+                CUnit unit = new CUnit(_cube_obj, _mouse_point, _box_size_min, _box_size_max, CIdGen.Instance.GetNewId());
                 _quad_map.InsertObject(unit);
+                //_quad_map.DrawGizmos();
             }
             else
+            {
                 _quad_map.DeleteObjectByMousePos(_mouse_point);
+                //_quad_map.DrawGizmos();
+            }   
+
         }
 
         if (Input.GetMouseButtonDown(0) && !_is_dragging)
@@ -73,7 +81,7 @@ public class CubeGenerator : MonoBehaviour
                 return;
             _selected_object = (CUnit)_selected_objects[0];
             _selected_objects.Clear();
-            
+
             _is_dragging = true;
 
         }
@@ -89,16 +97,17 @@ public class CubeGenerator : MonoBehaviour
             Bounds old_aabb = _selected_object.GetAABB();
             _selected_object.ChangeCenter(new Vector3(_selected_object.GetAABB().center.x + offset.x, 0, _selected_object.GetAABB().center.z + offset.z));
             _quad_map.ChangeTreeOnMove(old_aabb, _selected_object);
-
             _last_mouse_pos = GetPointOnPlaneByMousePosition();
 
         }
 
-        if(Input.GetMouseButtonUp(0))
+        if (Input.GetMouseButtonUp(0))
         {
             _is_dragging = false;
             _selected_object = null;
         }
+
+        
     }
 
     private Vector3 GetPointOnPlaneByMousePosition()
@@ -110,12 +119,23 @@ public class CubeGenerator : MonoBehaviour
         return ray.origin + ray.direction * t;
     }
 
-    private void OnDrawGizmos()
-    {
-        if(_mouse_point != Vector3.zero)
-            Gizmos.DrawSphere(_mouse_point, 2f);
+    //private void OnDrawGizmos()
+    //{
+    //    if (_mouse_point != Vector3.zero)
+    //        Gizmos.DrawSphere(_mouse_point, 2f);
 
-        if(_quad_map != null)
-            _quad_map.DrawGizmos();
+    //    if (_quad_map != null)
+    //    {
+    //        _quad_map.DrawGizmos();
+    //    }
+
+    //}
+
+
+
+
+    public Vector3 GetPlaneCenter()
+    {
+        return new Vector3(_plane_left_bottom.x + _plane_size / 2, 0, _plane_left_bottom.y + _plane_size / 2);
     }
 }

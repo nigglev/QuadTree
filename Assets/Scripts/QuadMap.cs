@@ -26,11 +26,14 @@ class CObj
 {
     IQuadObject _quad_obj;
     AABB2D _box2D;
+    CQuadLeaf _leaf;
 
-    public CObj(IQuadObject in_quad_obj, AABB2D in_box2D)
+
+    public CObj(IQuadObject in_quad_obj, AABB2D in_box2D, CQuadLeaf in_leaf)
     {
         _quad_obj = in_quad_obj;
         _box2D = in_box2D;
+        _leaf = in_leaf;
     }
 
     public IQuadObject GetQuadObject()
@@ -42,46 +45,50 @@ class CObj
     {
         return _box2D;
     }
+
+    public CQuadLeaf GetObjectLeaf()
+    {
+        return _leaf;
+    }
 }
 
 public interface IQuadObject
 {
     int GetId();
     Bounds GetAABB();
+    GameObject GetGameObject();
 }
 
 
 class QuadMap
-{   
-    Vector3 _center;
+{
+    Vector3 _origin;
     float _unity_meters_in_piece;
     int _tree_depth;
     CQuadLeaf _initial_quad;
     Hashtable _objs_ht;
-    public QuadMap(float in_map_size, Vector3 in_world_center, int in_tree_depth)
-    {   
+    List<int> _deleted_objects_id;
+    public QuadMap(float in_map_size, Vector3 in_world_origin, int in_tree_depth)
+    {
         _unity_meters_in_piece = in_map_size / (Mathf.Pow(2, in_tree_depth));
-        _center = in_world_center;
+        _origin = in_world_origin;
         _tree_depth = in_tree_depth;
-        _initial_quad = new CQuadLeaf(in_map_size);
+        _initial_quad = new CQuadLeaf(in_map_size, _origin);
         _objs_ht = new Hashtable();
+        _deleted_objects_id = new List<int>();
     }
 
     public void InsertObject(IQuadObject in_obj)
     {
-#if ASSERTS
         if (_objs_ht.ContainsKey(in_obj.GetId()))
         {
             Debug.LogError(string.Format("Object with ID = {0} already exists", in_obj.GetId()));
             return;
         }
-        else
-            _objs_ht.Add(in_obj.GetId(), in_obj.GetAABB());
-#endif
+
         CQuadLeaf current_quad = _initial_quad;
         int comparator = 1;
         RectInt object_sides = GetObjectSidesOnQuadMap(in_obj.GetAABB());
-        CObj obj = new CObj(in_obj, new AABB2D(object_sides.xMin, object_sides.yMax, object_sides.xMax, object_sides.yMin));
 
         for (int i = _tree_depth; i > 0; i--)
         {
@@ -94,20 +101,23 @@ class QuadMap
             current_quad = current_quad.GetQuadOrCreateNewIfNonExist(index);
         }
 
+        CObj obj = new CObj(in_obj, new AABB2D(object_sides.xMin, object_sides.yMax, object_sides.xMax, object_sides.yMin), current_quad);
+
         current_quad.AddObject(obj);
+        _objs_ht.Add(in_obj.GetId(), obj);
     }
 
     public void SelectObjects(Vector3 in_mouse_position, List<IQuadObject> out_objects)
     {
         int comparator = 1;
         int depth = _tree_depth;
-        int x = (int)((in_mouse_position.x - _center.x) / _unity_meters_in_piece);
-        int y = (int)((in_mouse_position.z - _center.z) / _unity_meters_in_piece);
+        int x = (int)((in_mouse_position.x - _origin.x) / _unity_meters_in_piece);
+        int y = (int)((in_mouse_position.z - _origin.z) / _unity_meters_in_piece);
 
         CQuadLeaf current_quad = _initial_quad;
 
         while (current_quad != null)
-        {   
+        {
             current_quad.GetSelectedObjects(in_mouse_position, out_objects);
             depth--;
 
@@ -118,15 +128,17 @@ class QuadMap
 
             current_quad = current_quad.GetQuad(index);
         }
-        
+
     }
 
     public void DeleteObjectByMousePos(Vector3 in_mouse_position)
     {
+        _deleted_objects_id.Clear();
+
         int comparator = 1;
         int depth = _tree_depth;
-        int x = (int)((in_mouse_position.x - _center.x) / _unity_meters_in_piece);
-        int y = (int)((in_mouse_position.z - _center.z) / _unity_meters_in_piece);
+        int x = (int)((in_mouse_position.x - _origin.x) / _unity_meters_in_piece);
+        int y = (int)((in_mouse_position.z - _origin.z) / _unity_meters_in_piece);
 
         CQuadLeaf current_quad = _initial_quad;
         CQuadLeaf prev_quad = null;
@@ -134,7 +146,12 @@ class QuadMap
         while (current_quad != null)
         {
             if (current_quad.GetQuadObjectectsCount() != 0)
-                current_quad.DeleteObjectByMousePosition(in_mouse_position);
+            {
+                current_quad.DeleteObjectByMousePosition(in_mouse_position, _deleted_objects_id);
+                for (int i = 0; i < _deleted_objects_id.Count; i++)
+                    _objs_ht.Remove(_deleted_objects_id[i]);
+            }
+
 
             depth--;
 
@@ -152,47 +169,44 @@ class QuadMap
 
     public void ChangeTreeOnMove(Bounds in_old_object_aabb, IQuadObject in_new_pos_object)
     {
-        CQuadLeaf current_quad = _initial_quad;
         RectInt old_pos_box_sides = GetObjectSidesOnQuadMap(in_old_object_aabb);
         RectInt new_pos_box_sides = GetObjectSidesOnQuadMap(in_new_pos_object.GetAABB());
-        
+
         if (old_pos_box_sides.EqualSides(new_pos_box_sides))
             return;
-                
-        int comparator = 1;
 
-        for (int i = _tree_depth; i > 0; i--)
-        {
-            int k = comparator << i - 1;
-            int x = (k & old_pos_box_sides.xMin) > 0 ? 1 : 0;
-            int y = (k & old_pos_box_sides.yMax) > 0 ? 1 : 0;
-            if (x > 0 != (k & old_pos_box_sides.xMax) > 0 || y > 0 != (k & old_pos_box_sides.yMin) > 0)
-                break;
-            int index = (y << 1) + x;
-            current_quad = current_quad.GetQuad(index);
-        }
-
-        current_quad.DeleteObjectByID(in_new_pos_object.GetId());
-        current_quad.DeleteNodeIfEmpty();
-
-        _objs_ht.Remove(in_new_pos_object.GetId());
-        InsertObject(in_new_pos_object); 
+        DeleteObjectByID(in_new_pos_object.GetId());
+        InsertObject(in_new_pos_object);
 
     }
 
-    public bool CheckSides(RectInt in_rect1, RectInt in_rect2)
+    public bool IsEmpty()
+    {
+        return _initial_quad.GetQuadObjectectsCount() == 0 && !_initial_quad.HaveChilds();
+    }
+    
+
+    private void DeleteObjectByID(int in_id)
+    {
+        var obj_leaf = (CObj)_objs_ht[in_id];
+        obj_leaf.GetObjectLeaf().DeleteObjectByID(in_id);
+        obj_leaf.GetObjectLeaf().DeleteNodeIfEmpty();
+        _objs_ht.Remove(in_id);
+    }
+
+    private bool CheckSides(RectInt in_rect1, RectInt in_rect2)
     {
         if (in_rect1.xMin != in_rect2.xMin || in_rect1.xMax != in_rect2.xMax || in_rect1.yMin != in_rect2.yMin || in_rect1.yMin != in_rect2.yMax)
             return false;
         return true;
     }
 
-    public RectInt GetObjectSidesOnQuadMap(Bounds in_aabb)
+    private RectInt GetObjectSidesOnQuadMap(Bounds in_aabb)
     {
-        int left_side = (int)((in_aabb.GetLeft() - _center.x) / _unity_meters_in_piece);
-        int top_side = (int)((in_aabb.GetTop() - _center.z) / _unity_meters_in_piece);
-        int right_side = (int)((in_aabb.GetRight() - _center.x) / _unity_meters_in_piece);
-        int bottom_side = (int)((in_aabb.GetBottom() - _center.z) / _unity_meters_in_piece);
+        int left_side = (int)((in_aabb.GetLeft() - _origin.x) / _unity_meters_in_piece);
+        int top_side = (int)((in_aabb.GetTop() - _origin.z) / _unity_meters_in_piece);
+        int right_side = (int)((in_aabb.GetRight() - _origin.x) / _unity_meters_in_piece);
+        int bottom_side = (int)((in_aabb.GetBottom() - _origin.z) / _unity_meters_in_piece);
 
 
         RectInt out_sides = new RectInt(Vector2Int.zero, Vector2Int.zero);
@@ -204,13 +218,6 @@ class QuadMap
         out_sides.yMax = top_side;
 
         return out_sides;
-    }
-
-    public bool IsEmpty() { return _initial_quad.GetQuadObjectectsCount() == 0 && !_initial_quad.HaveChilds(); }
-
-    public void DrawGizmos()
-    {
-        _initial_quad.DrawGizmo(_center);
     }
 
 }

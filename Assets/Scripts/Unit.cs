@@ -9,14 +9,19 @@ public class CUnit : IQuadObject
 
     Bounds _aabb;
     int _id;
+    GameObject _cube;
 
-    public CUnit(Vector3 in_center, Vector3 in_size, int in_id)
+    public CUnit(GameObject in_cube, Vector3 in_center, Vector3 in_size, int in_id)
     {
         _aabb = new Bounds(in_center, in_size);
         _id = in_id;
+        _cube = in_cube;
+
+        _cube.transform.position = in_center;
+        _cube.transform.localScale = new Vector3(in_size.x, 0.01f, in_size.z);
     }
 
-    public CUnit(Vector3 in_center, float range_size_min, float range_size_max, int in_id)
+    public CUnit(GameObject in_cube, Vector3 in_center, float range_size_min, float range_size_max, int in_id)
     {
         float x_size = Random.Range(range_size_min, range_size_max);
         float y_size = 0;
@@ -24,10 +29,13 @@ public class CUnit : IQuadObject
 
         _aabb = new Bounds(in_center, new Vector3(x_size, y_size, z_size));
         _id = in_id;
+        _cube = in_cube;
 
+        _cube.transform.position = in_center;
+        _cube.transform.localScale = new Vector3(x_size, 0.01f, z_size);
     }
 
-    public CUnit(float range_center_min, float range_center_max, float range_size_min, float range_size_max, int in_id)
+    public CUnit(GameObject in_cube, float range_center_min, float range_center_max, float range_size_min, float range_size_max, int in_id)
     {
         float x_center = Random.Range(range_center_min, range_center_max);
         float y_center = 0;
@@ -42,10 +50,13 @@ public class CUnit : IQuadObject
 
         _aabb = new Bounds(center, size);
         _id = in_id;
+        _cube = in_cube;
 
+        _cube.transform.position = center;
+        _cube.transform.localScale = new Vector3(x_size, 0.01f, z_size);
     }
 
-    public CUnit(float range_center_min_x, float range_center_max_x, float range_center_min_z, float range_center_max_z, float range_size_min, float range_size_max, int in_id)
+    public CUnit(GameObject in_cube, float range_center_min_x, float range_center_max_x, float range_center_min_z, float range_center_max_z, float range_size_min, float range_size_max, int in_id)
     {
         float x_center = Random.Range(range_center_min_x, range_center_max_x);
         float y_center = 0;
@@ -60,14 +71,21 @@ public class CUnit : IQuadObject
 
         _aabb = new Bounds(center, size);
         _id = in_id;
+        _cube = in_cube;
+
+        _cube.transform.position = center;
+        _cube.transform.localScale = new Vector3(x_size, 0.01f, z_size);
     }
 
     public int GetId() { return _id; }
     public Bounds GetAABB() { return _aabb; }
 
+    public GameObject GetGameObject() { return _cube; }
+
     public void ChangeCenter(Vector3 in_new_center)
     {
         _aabb.center = in_new_center;
+        _cube.transform.position = in_new_center;
     }
 
 }
