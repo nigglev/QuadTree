@@ -138,7 +138,7 @@ Light:
   m_GameObject: {fileID: 170076733}
   m_Enabled: 1
   serializedVersion: 8
-  m_Type: 1
+  m_Type: 0
   m_Color: {r: 1, g: 0.95686275, b: 0.8392157, a: 1}
   m_Intensity: 1
   m_Range: 10
@@ -306,15 +306,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 575fd7586315de74c90cd69051834b05, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  _cubes_number: 10000
-  _plane_left_bottom: {x: 0, y: 0, z: 0}
-  _plane_size: 10000
-  _box_size_min: 20
-  _box_size_max: 40
-  _tree_depth: 7
-  _cube_prefab: {fileID: 4252614412082903900, guid: 2ccd65809e6a6fa49a9c922e3d8ebcc2,
-    type: 3}
-  _edge_prefab: {fileID: 0}
+  _brute_force_alg: 1
+  _quad_tree_alg: 0
 --- !u!4 &1942232864
 Transform:
   m_ObjectHideFlags: 0

@@ -1,73 +1,176 @@
-﻿using System.Collections;
+﻿using UnityEngine;
+using UnityEditor;
+using System.Collections;
 using System.Collections.Generic;
-using UnityEngine;
+using UnityEngine.Experimental.UIElements;
 
 public class CubeGenerator : MonoBehaviour
 {
-    [SerializeField]
-    int _cubes_number = 100000;
-    [SerializeField]
     Vector3 _plane_left_bottom = new Vector3(0, 0, 0);
     [SerializeField]
-    float _plane_size = 1000f;
+    int _cubes_number = 1000000;
     [SerializeField]
-    float _box_size_min = 20f;
+    float _plane_size = 10000;
     [SerializeField]
-    float _box_size_max = 40f;
+    float _box_size_min = 20;
     [SerializeField]
-    int _tree_depth = 3;
+    float _box_size_max = 40;
+    [SerializeField]
+    int _tree_depth = 7;
     [SerializeField]
     GameObject _cube_prefab;
     [SerializeField]
-    GameObject _edge_prefab;
+    int _number_of_tests = 1000;
+    [SerializeField]
+    bool _brute_force_alg = false;
+    [SerializeField]
+    bool _quad_tree_alg = true;
 
     Vector3 _mouse_point;
     Vector3 _last_mouse_pos;
 
     QuadMap _quad_map;
+    BruteForce _brute_force_map;
 
     List<IQuadObject> _selected_objects;
     CUnit _selected_object;
+
     bool _is_dragging;
     GameObject _cube_obj;
+    Material _material;
     
+    float elapsedTimeQT = 0.0f;
+    float elapsedTimeBF = 0.0f;
+
+    [CustomEditor(typeof(CubeGenerator))]
+    class CubeGeneratorEditor : Editor
+    {
+        public override void OnInspectorGUI()
+        {
+            CubeGenerator CGScript = (CubeGenerator)target;
+
+            CGScript._plane_size = EditorGUILayout.FloatField("Plane Size", CGScript._plane_size);
+            CGScript._cubes_number = EditorGUILayout.IntField("Number of Cubes", CGScript._cubes_number);
+
+            CGScript._box_size_min = EditorGUILayout.FloatField("Minimum Box Size", CGScript._box_size_min);
+            CGScript._box_size_max = EditorGUILayout.FloatField("Maximum Box Size", CGScript._box_size_max);
+
+            CGScript._tree_depth = EditorGUILayout.IntField("Tree Depth", CGScript._tree_depth);
+
+
+            CGScript._cube_prefab = (GameObject)EditorGUILayout.ObjectField("Prefab", CGScript._cube_prefab, typeof(GameObject), true);
+            CGScript._number_of_tests = EditorGUILayout.IntField("Number of Tests", CGScript._number_of_tests);
+
+            
+            CGScript._brute_force_alg = EditorGUILayout.Toggle("Brute Force", CGScript._brute_force_alg);
+            CGScript._quad_tree_alg = EditorGUILayout.Toggle("QuadTree", CGScript._quad_tree_alg);
+
+        }
+    }
 
     void Start()
     {
         _mouse_point = Vector3.zero;
         _quad_map = new QuadMap(_plane_size, _plane_left_bottom, _tree_depth);
+        _brute_force_map = new BruteForce(_plane_size, _plane_left_bottom);
         _selected_objects = new List<IQuadObject>();
         _selected_object = null;
         _is_dragging = false;
 
+        InsertObjects();
+    }
+
+    // Update is called once per frame
+    void Update()
+    {
+        QuadMapUpdate();
+
+        //if (_quad_tree_alg)
+        //    QuadMapUpdate();
+        //if (_brute_force_alg)
+        //    MapUpdate();
+    }
+
+    private void InsertObjects()
+    {
         for (int i = 0; i < _cubes_number; i++)
         {
             _cube_obj = Instantiate(_cube_prefab);
             CUnit unit = new CUnit(_cube_obj, _plane_left_bottom.x, _plane_left_bottom.x + _plane_size, _plane_left_bottom.z, _plane_left_bottom.z + _plane_size,
                 _box_size_min, _box_size_max, CIdGen.Instance.GetNewId());
             _quad_map.InsertObject(unit);
+            _brute_force_map.InsertObject(unit);
         }
     }
 
-    // Update is called once per frame
-    void Update()
+    private void MapUpdate()
     {
         if (Input.GetMouseButtonDown(1))
         {
             _mouse_point = GetPointOnPlaneByMousePosition();
+
+            if (_brute_force_map.IsEmpty())
+            {
+                _cube_obj = Instantiate(_cube_prefab);
+                CUnit unit = new CUnit(_cube_obj, _mouse_point, _box_size_min, _box_size_max, CIdGen.Instance.GetNewId());
+                _brute_force_map.InsertObject(unit);
+            }
+
+            else
+                _brute_force_map.DeleteObjectByMousePos(_mouse_point);
+        }
+
+        if (Input.GetMouseButtonDown(0) && !_is_dragging)
+        {
+            if (_brute_force_map.IsEmpty())
+                return;
+
+            _last_mouse_pos = GetPointOnPlaneByMousePosition();
+            _brute_force_map.SelectObjects(_last_mouse_pos, _selected_objects);
+            if (_selected_objects.Count == 0)
+                return;
+            _selected_object = (CUnit)_selected_objects[0];
+            _selected_objects.Clear();
+
+            _is_dragging = true;
+
+        }
+
+        if (Input.GetMouseButton(0))
+        {
+            if (_selected_object == null)
+                return;
+
+            _mouse_point = GetPointOnPlaneByMousePosition();
+            Vector3 offset = _mouse_point - _last_mouse_pos;
+
+            _selected_object.ChangeCenter(new Vector3(_selected_object.GetAABB().center.x + offset.x, 0, _selected_object.GetAABB().center.z + offset.z));
+            _last_mouse_pos = GetPointOnPlaneByMousePosition();
+        }
+
+        if (Input.GetMouseButtonUp(0))
+        {
+            _is_dragging = false;
+            _selected_object = null;
+        }
+
+    }
+
+    private void QuadMapUpdate()
+    {
+        if (Input.GetMouseButtonDown(1))
+        {
+            _mouse_point = GetPointOnPlaneByMousePosition();
+
             if (_quad_map.IsEmpty())
             {
                 _cube_obj = Instantiate(_cube_prefab);
                 CUnit unit = new CUnit(_cube_obj, _mouse_point, _box_size_min, _box_size_max, CIdGen.Instance.GetNewId());
                 _quad_map.InsertObject(unit);
-                //_quad_map.DrawGizmos();
             }
-            else
-            {
-                _quad_map.DeleteObjectByMousePos(_mouse_point);
-                //_quad_map.DrawGizmos();
-            }   
 
+            else
+                _quad_map.DeleteObjectByMousePos(_mouse_point);
         }
 
         if (Input.GetMouseButtonDown(0) && !_is_dragging)
@@ -106,8 +209,6 @@ public class CubeGenerator : MonoBehaviour
             _is_dragging = false;
             _selected_object = null;
         }
-
-        
     }
 
     private Vector3 GetPointOnPlaneByMousePosition()
@@ -119,23 +220,75 @@ public class CubeGenerator : MonoBehaviour
         return ray.origin + ray.direction * t;
     }
 
-    //private void OnDrawGizmos()
-    //{
-    //    if (_mouse_point != Vector3.zero)
-    //        Gizmos.DrawSphere(_mouse_point, 2f);
-
-    //    if (_quad_map != null)
-    //    {
-    //        _quad_map.DrawGizmos();
-    //    }
-
-    //}
-
-
-
-
     public Vector3 GetPlaneCenter()
     {
         return new Vector3(_plane_left_bottom.x + _plane_size / 2, 0, _plane_left_bottom.y + _plane_size / 2);
     }
+
+
+    private Vector3 GetRandomPointOnPlane()
+    {
+        float x_coord = Random.Range(_plane_left_bottom.x, _plane_left_bottom.x + _plane_size);
+        float z_coord = Random.Range(_plane_left_bottom.z, _plane_left_bottom.z + _plane_size);
+
+        return new Vector3(x_coord, 0, z_coord);
+    }
+
+
+    void OnGUI()
+    {
+        int w = Screen.width, h = Screen.height;
+        
+
+        if (GUI.Button(new Rect(10, 10, 150, 50), "Test performance"))
+        {   
+            var watch = System.Diagnostics.Stopwatch.StartNew();
+            for (int i = 0; i < _number_of_tests; i++)
+            {   
+                _quad_map.SelectObjects(GetRandomPointOnPlane(), _selected_objects);
+            }
+            watch.Stop();
+            elapsedTimeQT = watch.ElapsedMilliseconds;
+
+            foreach (IQuadObject obj in _selected_objects)
+            {
+                obj.GetGameObject().GetComponent<Renderer>().material.color = Color.red;
+            }
+            _selected_objects.Clear();
+
+            watch = System.Diagnostics.Stopwatch.StartNew();
+            for (int i = 0; i < _number_of_tests; i++)
+            {
+                _brute_force_map.SelectObjects(GetRandomPointOnPlane(), _selected_objects);
+            }
+            watch.Stop();
+            elapsedTimeBF = watch.ElapsedMilliseconds;
+
+            foreach (IQuadObject obj in _selected_objects)
+            {
+                var mat = obj.GetGameObject().GetComponent<Renderer>().material;
+                if (mat.color == Color.red)
+                    mat.color = Color.magenta;
+                else
+                    obj.GetGameObject().GetComponent<Renderer>().material.color = Color.yellow;
+            }
+            _selected_objects.Clear();
+        }
+
+        
+
+        GUIStyle style = new GUIStyle();
+        style.fontSize = h * 2 / 100;
+        style.normal.textColor = new Color(0.0f, 0.0f, 0.5f, 1.0f);
+
+        Rect rectQT = new Rect(10, 70, w, h * 2 / 100);
+        Rect rectBF = new Rect(10, 90, w, h * 2 / 100);
+
+        string textQT = string.Format("QuadTree Performance: {0:0.0} ms", elapsedTimeQT);
+        string textBF = string.Format("Brute Force Performance: {0:0.0} ms", elapsedTimeBF);
+
+        GUI.Label(rectQT, textQT, style);
+        GUI.Label(rectBF, textBF, style);
+    }
+    
 }
