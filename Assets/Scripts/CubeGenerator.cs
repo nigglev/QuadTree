@@ -26,7 +26,6 @@ public class CubeGenerator : MonoBehaviour
     Vector3 _last_mouse_pos;
 
     QuadMap _quad_map;
-    BruteForce _brute_force_map;
 
     List<IQuadObject> _selected_objects;
     CUnit _selected_object;
@@ -68,7 +67,6 @@ public class CubeGenerator : MonoBehaviour
     {
         _mouse_point = Vector3.zero;
         _quad_map = new QuadMap(_plane_size, _plane_left_bottom, _tree_depth);
-        _brute_force_map = new BruteForce(_plane_size, _plane_left_bottom);
         _selected_objects = new List<IQuadObject>();
         _selected_object = null;
         _is_dragging = false;
@@ -90,7 +88,6 @@ public class CubeGenerator : MonoBehaviour
             CUnit unit = new CUnit(_cube_obj, _plane_left_bottom.x, _plane_left_bottom.x + _plane_size, _plane_left_bottom.z, _plane_left_bottom.z + _plane_size,
                 _box_size_min, _box_size_max, CIdGen.Instance.GetNewId());
             _quad_map.InsertObject(unit);
-            _brute_force_map.InsertObject(unit);
         }
     }
 
@@ -186,7 +183,7 @@ public class CubeGenerator : MonoBehaviour
     void OnGUI()
     {
         int w = Screen.width, h = Screen.height;
-        
+        _selected_objects.Clear();
 
         if (GUI.Button(new Rect(10, 10, 150, 50), "Test performance"))
         {   
@@ -207,18 +204,14 @@ public class CubeGenerator : MonoBehaviour
             watch = System.Diagnostics.Stopwatch.StartNew();
             for (int i = 0; i < _number_of_tests; i++)
             {
-                _brute_force_map.SelectObjects(GetRandomPointOnPlane(), _selected_objects);
+                _quad_map.SelectObjectsBruteForce(GetRandomPointOnPlane(), _selected_objects);
             }
             watch.Stop();
             elapsedTimeBF = watch.ElapsedMilliseconds;
 
             foreach (IQuadObject obj in _selected_objects)
-            {
-                var mat = obj.GetGameObject().GetComponent<Renderer>().material;
-                if (mat.color == Color.red)
-                    mat.color = Color.magenta;
-                else
-                    obj.GetGameObject().GetComponent<Renderer>().material.color = Color.yellow;
+            {   
+                obj.GetGameObject().GetComponent<Renderer>().material.color = Color.yellow;
             }
             _selected_objects.Clear();
         }

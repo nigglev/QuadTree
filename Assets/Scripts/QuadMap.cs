@@ -131,6 +131,16 @@ class QuadMap
 
     }
 
+    public void SelectObjectsBruteForce(Vector3 in_mouse_position, List<IQuadObject> out_objects)
+    {
+        foreach (CObj obj in _objs_ht.Values)
+        {
+            if (obj.GetQuadObject().GetAABB().Contains(in_mouse_position))
+                out_objects.Add(obj.GetQuadObject());
+        }
+
+    }
+
     public void DeleteObjectByMousePos(Vector3 in_mouse_position)
     {
         _deleted_objects_id.Clear();
