@@ -2,7 +2,7 @@
 using UnityEditor;
 using System.Collections;
 using System.Collections.Generic;
-using UnityEngine.Experimental.UIElements;
+//using UnityEngine.Experimental.UIElements;
 
 public class CubeGenerator : MonoBehaviour
 {
@@ -21,10 +21,6 @@ public class CubeGenerator : MonoBehaviour
     GameObject _cube_prefab;
     [SerializeField]
     int _number_of_tests = 1000;
-    [SerializeField]
-    bool _brute_force_alg = false;
-    [SerializeField]
-    bool _quad_tree_alg = true;
 
     Vector3 _mouse_point;
     Vector3 _last_mouse_pos;
@@ -62,8 +58,8 @@ public class CubeGenerator : MonoBehaviour
             CGScript._number_of_tests = EditorGUILayout.IntField("Number of Tests", CGScript._number_of_tests);
 
             
-            CGScript._brute_force_alg = EditorGUILayout.Toggle("Brute Force", CGScript._brute_force_alg);
-            CGScript._quad_tree_alg = EditorGUILayout.Toggle("QuadTree", CGScript._quad_tree_alg);
+            //CGScript._brute_force_alg = EditorGUILayout.Toggle("Brute Force", CGScript._brute_force_alg);
+            //CGScript._quad_tree_alg = EditorGUILayout.Toggle("QuadTree", CGScript._quad_tree_alg);
 
         }
     }
@@ -84,11 +80,6 @@ public class CubeGenerator : MonoBehaviour
     void Update()
     {
         QuadMapUpdate();
-
-        //if (_quad_tree_alg)
-        //    QuadMapUpdate();
-        //if (_brute_force_alg)
-        //    MapUpdate();
     }
 
     private void InsertObjects()
@@ -101,59 +92,6 @@ public class CubeGenerator : MonoBehaviour
             _quad_map.InsertObject(unit);
             _brute_force_map.InsertObject(unit);
         }
-    }
-
-    private void MapUpdate()
-    {
-        if (Input.GetMouseButtonDown(1))
-        {
-            _mouse_point = GetPointOnPlaneByMousePosition();
-
-            if (_brute_force_map.IsEmpty())
-            {
-                _cube_obj = Instantiate(_cube_prefab);
-                CUnit unit = new CUnit(_cube_obj, _mouse_point, _box_size_min, _box_size_max, CIdGen.Instance.GetNewId());
-                _brute_force_map.InsertObject(unit);
-            }
-
-            else
-                _brute_force_map.DeleteObjectByMousePos(_mouse_point);
-        }
-
-        if (Input.GetMouseButtonDown(0) && !_is_dragging)
-        {
-            if (_brute_force_map.IsEmpty())
-                return;
-
-            _last_mouse_pos = GetPointOnPlaneByMousePosition();
-            _brute_force_map.SelectObjects(_last_mouse_pos, _selected_objects);
-            if (_selected_objects.Count == 0)
-                return;
-            _selected_object = (CUnit)_selected_objects[0];
-            _selected_objects.Clear();
-
-            _is_dragging = true;
-
-        }
-
-        if (Input.GetMouseButton(0))
-        {
-            if (_selected_object == null)
-                return;
-
-            _mouse_point = GetPointOnPlaneByMousePosition();
-            Vector3 offset = _mouse_point - _last_mouse_pos;
-
-            _selected_object.ChangeCenter(new Vector3(_selected_object.GetAABB().center.x + offset.x, 0, _selected_object.GetAABB().center.z + offset.z));
-            _last_mouse_pos = GetPointOnPlaneByMousePosition();
-        }
-
-        if (Input.GetMouseButtonUp(0))
-        {
-            _is_dragging = false;
-            _selected_object = null;
-        }
-
     }
 
     private void QuadMapUpdate()
@@ -171,6 +109,16 @@ public class CubeGenerator : MonoBehaviour
 
             else
                 _quad_map.DeleteObjectByMousePos(_mouse_point);
+        }
+
+        if (Input.GetMouseButtonDown(2))
+        {
+            _mouse_point = GetPointOnPlaneByMousePosition();
+           
+            _cube_obj = Instantiate(_cube_prefab);
+            CUnit unit = new CUnit(_cube_obj, _mouse_point, _box_size_min, _box_size_max, CIdGen.Instance.GetNewId());
+            _quad_map.InsertObject(unit);
+            
         }
 
         if (Input.GetMouseButtonDown(0) && !_is_dragging)

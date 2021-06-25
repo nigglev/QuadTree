@@ -9,7 +9,7 @@ public class CameraController : MonoBehaviour
     public int Speed = 50;
     void Start()
     {
-        //transform.position = 
+        
     }
 
     // Update is called once per frame
